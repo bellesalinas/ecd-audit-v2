@@ -4,7 +4,7 @@ import type { KlaviyoClient } from "./client.js";
 // Pulls everything one audit needs into an AccountSnapshot. Calls, in order:
 //   GET  /accounts                 brand name, currency, timezone
 //   GET  /metrics                  ids for Placed Order, Received Email, Clicked Email
-//   POST /metric-aggregates        revenue by $attributed_channel (last 30 complete days)
+//   POST /metric-aggregates x4     store revenue and orders, total and by $attributed_channel (last 30 complete days)
 //   POST /campaign-values-reports  email campaign stats (90 days)
 //   GET  /flows                    flow names, status, trigger
 //   POST /flow-values-reports      email flow message stats (90 days)
@@ -75,6 +75,39 @@ export function sumByDimension(rows: AggregateRow[], measurement: string): Map<s
   return totals;
 }
 
+/** Klaviyo labels channels "$email_channel", "$sms_channel"; reduce to "email", "sms". */
+export function channelName(label: string): string {
+  return label.toLowerCase().replace(/^\$/, "").replace(/_channel$/, "");
+}
+
+/**
+ * Attributed channel rows plus one "" row for the rest of the store. Grouping
+ * by $attributed_channel drops orders no message drove, so the store total
+ * comes from a separate ungrouped query.
+ */
+export function revenueRows(
+  totalRevenue: Map<string, number>,
+  totalOrders: Map<string, number>,
+  byChannelRevenue: Map<string, number>,
+  byChannelOrders: Map<string, number>,
+): ChannelRevenue[] {
+  const rows: ChannelRevenue[] = [];
+  for (const [label, revenue] of byChannelRevenue) {
+    const channel = channelName(label);
+    if (channel === "") continue;
+    rows.push({ channel, revenue, orders: byChannelOrders.get(label) ?? 0 });
+  }
+  const sumOf = (m: Map<string, number>) => [...m.values()].reduce((t, v) => t + v, 0);
+  const attributedRevenue = rows.reduce((t, r) => t + r.revenue, 0);
+  const attributedOrders = rows.reduce((t, r) => t + r.orders, 0);
+  rows.push({
+    channel: "",
+    revenue: Math.max(0, sumOf(totalRevenue) - attributedRevenue),
+    orders: Math.max(0, sumOf(totalOrders) - attributedOrders),
+  });
+  return rows;
+}
+
 interface MetricRef {
   id: string;
   name: string;
@@ -116,26 +149,33 @@ export async function pullSnapshot(client: KlaviyoClient, opts: { today?: Date; 
   const received = pickMetric(metrics, "Received Email", ["Klaviyo"]);
   const clicked = pickMetric(metrics, "Clicked Email", ["Klaviyo"]);
 
-  const aggregate = async (metricId: string, measurement: string, by: string, range: DateRange) => {
+  const aggregate = async (metricId: string, measurement: string, by: string | undefined, range: DateRange) => {
     const body = {
       data: {
         type: "metric-aggregate",
-        attributes: { metric_id: metricId, measurements: [measurement], interval: "month", by: [by], filter: datetimeFilter(range), timezone: "UTC", page_size: 500 },
+        attributes: {
+          metric_id: metricId,
+          measurements: [measurement],
+          interval: "month",
+          ...(by ? { by: [by] } : {}),
+          filter: datetimeFilter(range),
+          timezone: "UTC",
+          page_size: 500,
+        },
       },
     };
     const res = await client.request<{ data: { attributes: { data: AggregateRow[] } } }>("POST", "/metric-aggregates", body);
     return sumByDimension(res.data.attributes.data, measurement);
   };
 
-  log("Pulling revenue by attributed channel (last 30 complete days)");
-  const revenueBody = (measurement: string) => aggregate(placedOrder.id, measurement, "$attributed_channel", revenueWindow);
-  const revenueTotals = await revenueBody("sum_value");
-  const orderTotals = await revenueBody("count");
-  const revenueByChannel: ChannelRevenue[] = [...revenueTotals.entries()].map(([channel, revenue]) => ({
-    channel: channel.toLowerCase(),
-    revenue,
-    orders: orderTotals.get(channel) ?? 0,
-  }));
+  log("Pulling store revenue and revenue by attributed channel (last 30 complete days)");
+  const placed = (measurement: string, by?: string) => aggregate(placedOrder.id, measurement, by, revenueWindow);
+  const revenueByChannel = revenueRows(
+    await placed("sum_value"),
+    await placed("count"),
+    await placed("sum_value", "$attributed_channel"),
+    await placed("count", "$attributed_channel"),
+  );
 
   const valuesReport = async (type: "campaign-values-report" | "flow-values-report", path: string, groupBy: string[]) => {
     const body = {

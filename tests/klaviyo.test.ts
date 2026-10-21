@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { KLAVIYO_REVISION, KlaviyoClient, KlaviyoError } from "../src/klaviyo/client.js";
-import { completeDays, pickMetric, pullSnapshot, sumByDimension, toMessageStats } from "../src/klaviyo/pull.js";
+import { channelName, completeDays, pickMetric, pullSnapshot, revenueRows, sumByDimension, toMessageStats } from "../src/klaviyo/pull.js";
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
@@ -74,6 +74,26 @@ describe("pull helpers", () => {
     expect(stats).toMatchObject({ id: "m1", name: "Spring", recipients: 100, clickRate: 0.02, revenue: 500, bounceRate: 0 });
   });
 
+  it("normalises Klaviyo's channel labels", () => {
+    expect(channelName("$email_channel")).toBe("email");
+    expect(channelName("$sms_channel")).toBe("sms");
+    expect(channelName("Email")).toBe("email");
+  });
+
+  it("splits revenue into attributed channels plus the unattributed rest of the store", () => {
+    const rows = revenueRows(
+      new Map([["", 100_000]]),
+      new Map([["", 900]]),
+      new Map([["$email_channel", 30_000], ["$sms_channel", 5_000]]),
+      new Map([["$email_channel", 200], ["$sms_channel", 40]]),
+    );
+    expect(rows).toEqual([
+      { channel: "email", revenue: 30_000, orders: 200 },
+      { channel: "sms", revenue: 5_000, orders: 40 },
+      { channel: "", revenue: 65_000, orders: 660 },
+    ]);
+  });
+
   it("prefers the Shopify Placed Order metric when there are several", () => {
     const picked = pickMetric(
       [
@@ -111,8 +131,12 @@ describe("pullSnapshot", () => {
         });
       if (url.endsWith("/metric-aggregates")) {
         const attrs = JSON.parse(String(init!.body)).data.attributes;
-        if (attrs.metric_id === "PO")
-          return json({ data: { attributes: { data: [{ dimensions: ["Email"], measurements: { [attrs.measurements[0]]: [10, 20] } }, { dimensions: [""], measurements: { [attrs.measurements[0]]: [70, 0] } }] } } });
+        if (attrs.metric_id === "PO") {
+          const m = attrs.measurements[0];
+          // Like the real API: grouped by channel, orders no message drove are left out.
+          if (attrs.by) return json({ data: { attributes: { data: [{ dimensions: ["$email_channel"], measurements: { [m]: [10, 20] } }] } } });
+          return json({ data: { attributes: { data: [{ dimensions: [], measurements: { [m]: [60, 40] } }] } } });
+        }
         return json({ data: { attributes: { data: [{ dimensions: ["Hello"], measurements: { unique: [attrs.metric_id === "RE" ? 2000 : 40] } }] } } });
       }
       if (url.endsWith("/campaign-values-reports"))
@@ -126,14 +150,19 @@ describe("pullSnapshot", () => {
 
     expect(snap.brand).toBe("Acme");
     expect(snap.currency).toBe("AUD");
-    expect(snap.revenueByChannel).toContainEqual({ channel: "email", revenue: 30, orders: 30 });
+    expect(snap.revenueByChannel).toEqual([
+      { channel: "email", revenue: 30, orders: 30 },
+      { channel: "", revenue: 70, orders: 70 },
+    ]);
     expect(snap.campaigns[0]).toMatchObject({ id: "CM", name: "Hello", revenue: 300 });
     expect(snap.flows).toHaveLength(1);
     expect(snap.flows[0]).toMatchObject({ name: "Welcome", status: "live" });
     expect(snap.flows[0]!.messages[0]).toMatchObject({ id: "FM", revenue: 90 });
     expect(snap.subjects).toEqual([{ subject: "Hello", received: 2000, clicked: 40 }]);
 
-    const revenueCall = posts.find((p) => p.body.data.attributes.metric_id === "PO")!;
+    const revenueCalls = posts.filter((p) => p.body.data.attributes.metric_id === "PO");
+    expect(revenueCalls.filter((p) => p.body.data.attributes.by === undefined)).toHaveLength(2);
+    const revenueCall = revenueCalls.find((p) => p.body.data.attributes.by)!;
     expect(revenueCall.body.data.attributes.by).toEqual(["$attributed_channel"]);
     expect(revenueCall.body.data.attributes.filter).toEqual(["greater-or-equal(datetime,2026-09-21T00:00:00)", "less-than(datetime,2026-10-21T00:00:00)"]);
     const campaignCall = posts.find((p) => p.url.endsWith("/campaign-values-reports"))!;
