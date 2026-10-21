@@ -69,6 +69,11 @@ async function main() {
       process.exitCode = 1;
       return;
     }
+    if (key.includes("your_key_here")) {
+      console.error("KLAVIYO_API_KEY in .env is still the example placeholder. Replace pk_your_key_here with the real private key and save the file.");
+      process.exitCode = 1;
+      return;
+    }
     console.log("Pulling from Klaviyo. The two report calls are rate limited, so this can take a few minutes.");
     snapshot = await pullSnapshot(new KlaviyoClient(key, fetch, log), { brand: values.brand, log });
   }
