@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Demo audit runs end to end
+        run: npm run demo -- --out out/ci-demo && test -s out/ci-demo/deck.html && test -s out/ci-demo/brief.md && test -s out/ci-demo/ledger.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo-audit
+          path: out/ci-demo

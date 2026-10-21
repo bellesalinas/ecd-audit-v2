@@ -1,0 +1,20 @@
+{
+  "name": "ecd-audit-v2",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ECD Klaviyo audit v2: pulls a prospect's Klaviyo data, computes every number in code, and writes the sales deck, strategist brief and numbers ledger.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "audit": "tsx src/cli.ts",
+    "demo": "tsx src/cli.ts --demo",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
