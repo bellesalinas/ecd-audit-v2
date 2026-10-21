@@ -31,7 +31,7 @@ function flowOpportunity(health: CoreFlowHealth, currency: string, ledger: Ledge
     verify: true,
   });
   const benchmarkLine = {
-    text: `Benchmark for a ${spec.label.toLowerCase()} flow at this revenue: ${money(health.benchmarkMonthly, currency)} a month`,
+    text: `Benchmark for ${/^[aeiou]/i.test(spec.label) ? "an" : "a"} ${spec.label.toLowerCase()} flow at this revenue: ${money(health.benchmarkMonthly, currency)} a month`,
     ledgerId: `${ledgerPrefix}.benchmark_monthly`,
   };
 

@@ -23,7 +23,7 @@ export interface RevenueSplit {
 export function analyseRevenue(snapshot: AccountSnapshot, ledger: Ledger): RevenueSplit {
   const rows = snapshot.revenueByChannel;
   const range = describeRange(snapshot.revenueWindow);
-  const source = "metric-aggregates: Placed Order sum_value by $attributed_channel";
+  const source = "metric-aggregates: Placed Order sum_value, total and by $attributed_channel";
 
   const total = sum(rows, (r) => r.revenue);
   const orders = sum(rows, (r) => r.orders);
