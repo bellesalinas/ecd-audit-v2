@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import { analyse } from "../src/analysis/index.js";
 import { demoSnapshot } from "../src/demo/fixture.js";
 import { addBusinessDays, renderBrief } from "../src/render/brief.js";
+import { loadDeckAssets } from "../src/render/assets-node.js";
 import { escapeHtml, headline, renderDeck } from "../src/render/deck.js";
 import { renderLedgerCsv } from "../src/render/ledger-csv.js";
 
 describe("deck", () => {
-  const html = renderDeck(analyse(demoSnapshot()));
+  const html = renderDeck(analyse(demoSnapshot()), loadDeckAssets());
 
   it("has a cover, an at-a-glance slide, one slide per opportunity and the closing slides", () => {
     const slides = html.match(/<section class="slide/g) ?? [];
@@ -22,7 +23,7 @@ describe("deck", () => {
   it("escapes brand names", () => {
     const snap = demoSnapshot();
     snap.brand = `<script>alert("x")</script> & Co`;
-    const out = renderDeck(analyse(snap));
+    const out = renderDeck(analyse(snap), loadDeckAssets());
     expect(out).not.toContain("<script>alert");
     expect(out).toContain("&lt;script&gt;");
   });
@@ -68,5 +69,15 @@ describe("ledger csv", () => {
     expect(lines).toHaveLength(result.ledger.all().length + 1);
     expect(csv).toContain('"$412,000"');
     expect(csv).toContain("[VERIFY]");
+  });
+});
+
+describe("deck on a healthy account", () => {
+  it("falls back to the share gap when no fix carries a dollar value", async () => {
+    const { healthyClientSnapshot } = await import("../src/demo/scenarios.js");
+    const html = renderDeck(analyse(healthyClientSnapshot()), loadDeckAssets());
+    expect(html).not.toContain("$0 a month");
+    expect(html).toContain("Email and SMS could earn");
+    expect(html).toContain("One fix, ranked");
   });
 });

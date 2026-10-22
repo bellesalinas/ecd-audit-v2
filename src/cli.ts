@@ -7,6 +7,7 @@ import { money } from "./format.js";
 import { KlaviyoClient } from "./klaviyo/client.js";
 import { pullSnapshot } from "./klaviyo/pull.js";
 import { renderBrief } from "./render/brief.js";
+import { loadDeckAssets } from "./render/assets-node.js";
 import { renderDeck } from "./render/deck.js";
 import { renderLedgerCsv } from "./render/ledger-csv.js";
 import type { AccountSnapshot } from "./types.js";
@@ -83,7 +84,7 @@ async function main() {
   const outDir = resolve(values.out ?? join("out", `${slug(snapshot.brand)}-${snapshot.pulledAt.slice(0, 10)}`));
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, "snapshot.json"), JSON.stringify(snapshot, null, 2));
-  writeFileSync(join(outDir, "deck.html"), renderDeck(result));
+  writeFileSync(join(outDir, "deck.html"), renderDeck(result, loadDeckAssets()));
   writeFileSync(join(outDir, "brief.md"), renderBrief(result));
   writeFileSync(join(outDir, "ledger.csv"), renderLedgerCsv(result.ledger, snapshot.currency));
 

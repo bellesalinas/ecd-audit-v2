@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import type { AuditResult } from "../analysis/index.js";
 import type { FlowState } from "../analysis/flows.js";
 import { benchmarks } from "../benchmarks.js";
@@ -9,7 +8,12 @@ import type { Opportunity } from "../types.js";
 // inlined so it can be emailed or opened offline. Print to PDF from a
 // browser (landscape, no margins) for a PDF version.
 
-const asset = (name: string) => `data:image/png;base64,${readFileSync(new URL(`../../assets/${name}`, import.meta.url)).toString("base64")}`;
+/** Brand images as data: URIs, so the deck works offline and in the browser. */
+export interface DeckAssets {
+  logo: string;
+  logoWhite: string;
+  cover: string;
+}
 
 export function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -46,15 +50,19 @@ function opportunitySlide(o: Opportunity, index: number, currency: string, logo:
   );
 }
 
-export function renderDeck(result: AuditResult): string {
+export function renderDeck(result: AuditResult, assets: DeckAssets): string {
   const { snapshot, revenue, campaigns, flows, subjects, opportunities, totalMonthlyOpportunity } = result;
   const c = snapshot.currency;
-  const logoWhite = asset("ecd-logo-primary-horizontal-white.png");
-  const logo = asset("ecd-logo-primary-horizontal.png");
-  const cover = asset("ecd-cover-blue.png");
+  const { logo, logoWhite, cover } = assets;
   const pulled = new Date(snapshot.pulledAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   const liveCore = flows.filter((f) => f.state === "healthy" || f.state === "underperforming").length;
   const hasPlaceholders = result.ledger.all().some((e) => e.verify);
+  const glanceHeadline =
+    totalMonthlyOpportunity > 0
+      ? `${money(totalMonthlyOpportunity, c)} a month is on the <em>table</em>`
+      : revenue.monthlyGap > 0
+        ? `Email and SMS could earn ${money(revenue.monthlyGap, c)} more a <em>month</em>`
+        : `The email program is in good <em>shape</em>`;
   // The weakest core flow, by the revenue gap to its benchmark.
   const firstFlowFix = flows
     .filter((f) => f.state !== "healthy")
@@ -75,7 +83,7 @@ export function renderDeck(result: AuditResult): string {
   slides.push(
     slide(
       `<div class="eyebrow"><span class="ecd-tag">At a glance</span></div>
-       <h2>${money(totalMonthlyOpportunity, c)} a month is on the <em>table</em></h2>
+       <h2>${glanceHeadline}</h2>
        <div class="stats">
          <div class="ecd-card stat"><div class="subhead">Store revenue, last 30 days</div><div class="num">${money(revenue.total, c)}</div></div>
          <div class="ecd-card stat"><div class="subhead">From email and SMS</div><div class="num">${percent(revenue.ownedShare)}</div><div class="note">Healthy accounts: ${percent(revenue.targetShare, 0)}</div></div>
@@ -114,7 +122,7 @@ export function renderDeck(result: AuditResult): string {
   slides.push(
     slide(
       `<div class="eyebrow"><span class="ecd-tag">The opportunities</span></div>
-       <h2>${opportunities.length} fixes, ranked by <em>revenue</em></h2>
+       <h2>${opportunities.length === 1 ? "One fix" : `${opportunities.length} fixes`}, ranked by <em>revenue</em></h2>
        <ol class="opp-list">${opportunities
          .map((o) => `<li><span class="opp-name">${headline(o.headline)}</span><span class="opp-value">${o.monthlyValue > 0 ? `+${money(o.monthlyValue, c)}/mo` : "Risk"}</span></li>`)
          .join("")}</ol>`,

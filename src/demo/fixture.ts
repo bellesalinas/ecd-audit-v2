@@ -4,7 +4,7 @@ import type { AccountSnapshot, MessageStats } from "../types.js";
 // finding: an underperforming abandoned checkout, a missing browse flow, a
 // post-purchase flow left in manual, low cadence and a weak click rate.
 
-function msg(id: string, name: string, recipients: number, clickRate: number, revenue: number, extra: Partial<MessageStats> = {}): MessageStats {
+export function msg(id: string, name: string, recipients: number, clickRate: number, revenue: number, extra: Partial<MessageStats> = {}): MessageStats {
   const delivered = Math.round(recipients * 0.985);
   return {
     id,

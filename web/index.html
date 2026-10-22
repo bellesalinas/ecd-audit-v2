@@ -1,0 +1,273 @@
+<title>ECD Klaviyo Audit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@400;500;600&display=swap">
+<style>
+/* Layout: an app shell. Setup panel on the left (sticky on wide screens), results on the right with tabs for the four outputs; stacks to one column on phones. ECD brand tokens. */
+:root {
+  --bg: #F6F6FC;
+  --surface: #FFFFFF;
+  --tint: #ECECFF;
+  --line: #E0DEF4;
+  --fg: #1A1A2E;
+  --muted: #5B5A70;
+  --blue: #4B3AFF;
+  --blue-strong: #3A2BE0;
+  --on-blue: #FFFFFF;
+  --indigo: #0F0FA3;
+  --fuchsia: #EF2B93;
+  --good-bg: #E3FBEF; --good-fg: #00794A;
+  --warn-bg: #FFF2D6; --warn-fg: #8A5A00;
+  --bad-bg: #FDE3F0; --bad-fg: #B0105E;
+  --shadow: 0 10px 30px rgba(75, 58, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --label: 'Jost', 'Century Gothic', 'Avenir Next', sans-serif;
+  --body: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E0D1C; --surface: #17162B; --tint: #221F40; --line: #2D2B4B;
+    --fg: #EDEBFF; --muted: #A9A6C6; --blue: #9389FF; --blue-strong: #B3ABFF; --on-blue: #0E0D1C; --indigo: #C9C4FF; --fuchsia: #FF5AAE;
+    --good-bg: #0F3324; --good-fg: #6FE3AE; --warn-bg: #3A2C0B; --warn-fg: #F2C66B; --bad-bg: #3D1328; --bad-fg: #FF8CC4;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E0D1C; --surface: #17162B; --tint: #221F40; --line: #2D2B4B;
+  --fg: #EDEBFF; --muted: #A9A6C6; --blue: #9389FF; --blue-strong: #B3ABFF; --on-blue: #0E0D1C; --indigo: #C9C4FF; --fuchsia: #FF5AAE;
+  --good-bg: #0F3324; --good-fg: #6FE3AE; --warn-bg: #3A2C0B; --warn-fg: #F2C66B; --bad-bg: #3D1328; --bad-fg: #FF8CC4;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body); }
+.shell { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+code { font-family: var(--mono); font-size: 0.82em; background: var(--tint); color: var(--indigo); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--fuchsia); outline-offset: 2px; }
+.eyebrow { font-family: var(--label); text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600; font-size: 0.7rem; color: var(--blue); }
+
+/* Top bar */
+.topbar { border-bottom: 1px solid var(--line); background: var(--surface); }
+.topbar-inner { max-width: 1320px; margin: 0 auto; padding-block: 14px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.topbar img { height: 26px; width: auto; }
+:root[data-theme="dark"] .topbar img { filter: brightness(0) invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .topbar img { filter: brightness(0) invert(1); } }
+.app-name { font-family: var(--display); font-size: 1.25rem; font-weight: 600; color: var(--fg); }
+.app-name em { color: var(--blue); }
+.proto { margin-left: auto; font-family: var(--label); font-size: 0.75rem; letter-spacing: 0.06em; background: var(--warn-bg); color: var(--warn-fg); padding: 5px 12px; border-radius: 999px; }
+
+/* Shell */
+.layout { max-width: 1320px; margin: 0 auto; padding-block: 24px 64px; display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+
+/* Setup panel */
+.setup { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 18px; position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 32px); overflow: auto; }
+@media (max-width: 960px) { .setup { position: static; max-height: none; } }
+.setup h2 { font-family: var(--display); font-size: 1.5rem; color: var(--blue); font-weight: 600; }
+.field { display: grid; gap: 6px; }
+.field-label { font-family: var(--label); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.text-input { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 10px 12px; width: 100%; }
+.text-input:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 25%, transparent); }
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+.account { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 12px; padding: 12px; cursor: pointer; background: var(--bg); }
+.account:has(input:checked) { border-color: var(--blue); background: var(--tint); }
+.account input { margin-top: 3px; accent-color: var(--blue); }
+.account-body { display: grid; gap: 2px; min-width: 0; }
+.account-name { font-weight: bold; }
+.account-desc { color: var(--muted); font-size: 0.85rem; }
+.error { color: var(--bad-fg); background: var(--bad-bg); padding: 8px 10px; border-radius: 8px; font-size: 0.85rem; }
+.run { font-family: var(--label); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.85rem; color: #fff; background: var(--fuchsia); border: 0; border-radius: 999px; padding: 14px 20px; cursor: pointer; box-shadow: 0 12px 26px -8px rgba(239, 43, 147, 0.55); }
+.run:disabled { opacity: 0.7; cursor: progress; }
+.run-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.run-log li { display: flex; gap: 8px; align-items: center; }
+.run-log li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--line); flex: none; }
+.run-log li.active { color: var(--fg); }
+.run-log li.active::before { border-color: var(--blue); background: var(--tint); }
+.run-log li.done::before { background: var(--blue); border-color: var(--blue); }
+.hint { font-size: 0.82rem; color: var(--muted); }
+details.bench { border-top: 1px solid var(--line); padding-top: 14px; }
+details.bench > summary { cursor: pointer; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; list-style: none; }
+details.bench > summary::-webkit-details-marker { display: none; }
+details.bench > summary::after { content: "Show"; font-size: 0.8rem; color: var(--blue); }
+details.bench[open] > summary::after { content: "Hide"; }
+.bench-title { font-family: var(--label); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+#bench-count { font-size: 0.8rem; color: var(--muted); margin-left: auto; }
+.bench-body { display: grid; gap: 10px; margin-top: 12px; }
+.bench-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 0.85rem; padding: 6px 8px; border-radius: 8px; }
+.bench-row.changed { background: var(--tint); }
+.bench-input { display: flex; align-items: center; gap: 4px; }
+.bench-input input { width: 72px; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 6px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+.unit { font-size: 0.78rem; color: var(--muted); min-width: 3.4em; }
+.link-btn { background: none; border: 0; color: var(--blue); cursor: pointer; padding: 0; font-size: 0.85rem; justify-self: start; }
+.link-btn:disabled { color: var(--muted); cursor: default; }
+
+/* Results */
+.results { display: grid; gap: 18px; min-width: 0; scroll-margin-top: 16px; }
+.result-head { display: grid; gap: 4px; }
+.result-head h1 { font-family: var(--display); font-size: clamp(1.7rem, 3vw, 2.3rem); color: var(--blue); font-weight: 600; }
+.result-meta { color: var(--muted); font-size: 0.9rem; }
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 1180px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 2px; align-content: start; min-width: 0; }
+.stat-label { font-family: var(--label); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.stat-value { font-family: var(--display); font-size: 1.5rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat-note { font-size: 0.78rem; color: var(--muted); }
+
+.tablist { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+[role="tab"] { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; cursor: pointer; font-family: var(--label); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.04em; color: var(--muted); white-space: nowrap; margin-bottom: -1px; }
+[role="tab"][aria-selected="true"] { color: var(--blue); border-bottom-color: var(--blue); }
+.panel { display: grid; gap: 14px; min-width: 0; }
+.panel-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; color: var(--muted); font-size: 0.88rem; }
+.ghost { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 0.85rem; }
+.ghost:hover { border-color: var(--blue); color: var(--blue); }
+
+/* Opportunities */
+.opps { display: grid; gap: 12px; }
+.opp { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; display: grid; gap: 10px; }
+.opp-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: baseline; }
+.opp-rank { font-family: var(--display); font-size: 1.4rem; color: var(--blue); }
+.opp h3 { font-family: var(--display); font-size: 1.25rem; font-weight: 600; }
+.opp h3 em { color: var(--blue); }
+.opp-value { font-family: var(--label); font-weight: 600; font-size: 1.1rem; color: var(--blue); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.opp-value small { font-size: 0.75rem; color: var(--muted); }
+.opp-value.risk { color: var(--bad-fg); }
+.opp-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.impact { font-family: var(--label); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; background: var(--tint); color: var(--indigo); padding: 3px 10px; border-radius: 999px; }
+.evidence { margin: 0; padding-left: 18px; color: var(--muted); font-size: 0.9rem; display: grid; gap: 2px; }
+.fix { background: var(--tint); border-radius: 10px; padding: 10px 12px; font-size: 0.92rem; }
+.fix span { display: block; font-family: var(--label); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--blue); font-weight: 600; margin-bottom: 2px; }
+.opp details summary { cursor: pointer; color: var(--blue); font-size: 0.85rem; }
+.opp details p { color: var(--muted); font-size: 0.88rem; margin-top: 6px; }
+.empty { color: var(--muted); padding: 24px; text-align: center; border: 1px dashed var(--line); border-radius: 14px; }
+@media (max-width: 560px) { .opp-head { grid-template-columns: auto minmax(0, 1fr); } .opp-value { grid-column: 2; } }
+
+/* Deck */
+.deck-wrap { background: #d9d9e6; border-radius: 14px; overflow: hidden; position: relative; }
+.deck-wrap iframe { border: 0; width: 1328px; height: 790px; transform-origin: 0 0; display: block; background: #d9d9e6; }
+
+/* Brief */
+.brief { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 26px; display: grid; gap: 10px; max-width: 820px; }
+.brief h2 { font-family: var(--display); color: var(--blue); font-size: 1.6rem; font-weight: 600; }
+.brief h3 { font-family: var(--label); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.78rem; color: var(--blue); margin-top: 10px; }
+.brief p, .brief li { max-width: 70ch; }
+.brief ol, .brief ul { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+.brief li ul { margin-top: 4px; color: var(--muted); font-size: 0.9rem; gap: 2px; }
+.task { display: inline-flex; gap: 6px; align-items: baseline; }
+.task input { accent-color: var(--blue); }
+.brief ul:has(.task) { list-style: none; padding-left: 0; }
+
+/* Ledger */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+th { text-align: left; font-family: var(--label); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.68rem; font-weight: 600; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; position: sticky; top: 0; background: var(--surface); }
+td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.src { color: var(--muted); min-width: 220px; }
+.note { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+.verify { font-family: var(--label); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; background: var(--warn-bg); color: var(--warn-fg); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.toggle { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.toggle input { accent-color: var(--blue); }
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+</style>
+
+<header class="topbar shell">
+  <div class="topbar-inner">
+    <img data-logo alt="ECD Digital Strategy" width="105" height="26">
+    <span class="app-name">Klaviyo <em>Audit</em></span>
+    <span class="proto">Prototype · sample accounts, no live Klaviyo calls</span>
+  </div>
+</header>
+
+<div class="shell">
+  <div class="layout">
+    <aside class="setup" aria-label="New audit">
+      <h2>New audit</h2>
+
+      <div class="field">
+        <label class="field-label" for="brand">Brand name on the deck</label>
+        <input class="text-input" id="brand" type="text" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <span class="field-label" id="accounts-label">Account</span>
+        <fieldset id="accounts" aria-labelledby="accounts-label"></fieldset>
+        <input id="snapshot-file" type="file" accept=".json,application/json" hidden>
+        <p class="error" id="upload-error" hidden></p>
+      </div>
+
+      <button class="run" id="run" type="button">Run audit</button>
+      <ol class="run-log" id="run-log" hidden aria-live="polite"></ol>
+
+      <p class="hint">The real tool asks for a read-only Klaviyo API key and pulls live data. Here, the sample accounts stand in for that step. Everything after it is the real tool's code.</p>
+
+      <details class="bench">
+        <summary><span class="bench-title">Benchmarks</span><span id="bench-count"></span></summary>
+        <div class="bench-body">
+          <p class="hint">Placeholder rules of thumb until ECD's own benchmarks go in. Change any value and the results update straight away.</p>
+          <div id="bench-fields"></div>
+          <button class="link-btn" id="bench-reset" type="button">Reset to placeholder values</button>
+        </div>
+      </details>
+    </aside>
+
+    <main class="results" id="results" hidden>
+      <div class="result-head">
+        <span class="eyebrow">Audit results</span>
+        <h1 id="result-brand"></h1>
+        <p class="result-meta" id="result-meta"></p>
+      </div>
+
+      <div class="stats" id="stats"></div>
+
+      <div class="tablist" role="tablist" aria-label="Outputs">
+        <button role="tab" id="tab-opps" aria-controls="panel-opps" aria-selected="true" type="button">Opportunities</button>
+        <button role="tab" id="tab-deck" aria-controls="panel-deck" aria-selected="false" type="button">Sales deck</button>
+        <button role="tab" id="tab-brief" aria-controls="panel-brief" aria-selected="false" type="button">Call brief</button>
+        <button role="tab" id="tab-ledger" aria-controls="panel-ledger" aria-selected="false" type="button">Numbers ledger</button>
+      </div>
+
+      <section class="panel" id="panel-opps" role="tabpanel" aria-labelledby="tab-opps">
+        <p class="panel-bar">Ranked by estimated extra revenue a month. Risk findings take any slots left, up to six.</p>
+        <div class="opps" id="opps"></div>
+      </section>
+
+      <section class="panel" id="panel-deck" role="tabpanel" aria-labelledby="tab-deck" hidden>
+        <div class="panel-bar"><span>What the prospect sees. Scroll inside the frame. <span id="deck-count"></span>.</span></div>
+        <div class="deck-wrap" id="deck-wrap"><iframe id="deck" title="Sales deck preview"></iframe></div>
+      </section>
+
+      <section class="panel" id="panel-brief" role="tabpanel" aria-labelledby="tab-brief" hidden>
+        <div class="panel-bar"><span>For the Lifecycle Strategist only. Never sent to the prospect.</span><button class="ghost" id="copy-brief" type="button">Copy as Markdown</button></div>
+        <div class="brief" id="brief"></div>
+      </section>
+
+      <section class="panel" id="panel-ledger" role="tabpanel" aria-labelledby="tab-ledger" hidden>
+        <div class="panel-bar">
+          <span id="ledger-count"></span>
+          <span style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <label class="toggle" for="verify-only"><input id="verify-only" type="checkbox"> Only figures to verify</label>
+            <button class="ghost" id="copy-csv" type="button">Copy as CSV</button>
+          </span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Figure</th><th>Value</th><th>Source</th><th></th></tr></thead>
+            <tbody id="ledger-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script src="app.js"></script>

@@ -17,6 +17,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - name: Browser prototype builds
+        run: npm run build:web && test -s web/app.js
       - name: Demo audit runs end to end
         run: npm run demo -- --out out/ci-demo && test -s out/ci-demo/deck.html && test -s out/ci-demo/brief.md && test -s out/ci-demo/ledger.csv
       - uses: actions/upload-artifact@v4
